@@ -2,3 +2,7 @@
 *.o
 intro
 *.ASM
+petrobots.bin
+err.log
+__pycache__/
+*.pyc

@@ -32,6 +32,17 @@ dsk: intro
 image_data.h: convert_png.py introscreen.png
 	python3 convert_png.py
 
+# Convert KickAssembler sources to vasm, then assemble the PET game.
+# PETROBOTS12.s includes BACKGROUND_TASKS.s.
+petrobots: PETROBOTS12.s BACKGROUND_TASKS.s
+	$(VASM) -Fbin -dotdir PETROBOTS12.s -o petrobots.bin
+
+PETROBOTS12.s: PETROBOTS12.ASM convert_kick_vasm.py
+	python3 convert_kick_vasm.py PETROBOTS12.ASM PETROBOTS12.s
+
+BACKGROUND_TASKS.s: BACKGROUND_TASKS.ASM convert_kick_vasm.py
+	python3 convert_kick_vasm.py BACKGROUND_TASKS.ASM BACKGROUND_TASKS.s
+
 main.o: main.c shr.h image_data.h
 	$(VC) $(TARGET) $(CFLAGS) -c main.c -o $@
 
@@ -45,6 +56,6 @@ intro: $(OBJS)
 	$(VC) $(TARGET) -o $@ $(OBJS)
 
 clean:
-	rm -f *.o intro intro.map mapfile
+	rm -f *.o intro intro.map mapfile petrobots.bin
 
-.PHONY: all clean dsk
+.PHONY: all clean dsk petrobots
