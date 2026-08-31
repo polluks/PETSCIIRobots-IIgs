@@ -16,9 +16,17 @@ TARGET  = +iigs
 ASFLAGS = -816 -vobj3 -quiet -nowarn=62 -opt-branch -ldots -Fvobj
 CFLAGS  = -O2
 
+# AppleCommander jar used to build the ProDOS disk image (make dsk).
+AC_JAR  ?= AppleCommander-ac-14.0.jar
+
 OBJS = main.o shr.o shr_asm.o
 
 all: intro
+
+# Build the 800K ProDOS disk (PETSCIROB) containing the INTRO executable.
+dsk: intro
+	java -jar $(AC_JAR) -pro800 petsciirobots.dsk PETSCIROB
+	java -jar $(AC_JAR) -p petsciirobots.dsk INTRO EXE 2000 < intro
 
 # Convert the PNG into screen.bin and image_data.h
 image_data.h: convert_png.py introscreen.png
@@ -39,4 +47,4 @@ intro: $(OBJS)
 clean:
 	rm -f *.o intro intro.map mapfile
 
-.PHONY: all clean
+.PHONY: all clean dsk
