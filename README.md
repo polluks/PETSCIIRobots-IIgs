@@ -1,0 +1,65 @@
+# PETSCII Robots (Apple IIgs port)
+
+PETSCII Robots 12, originally written by David Murray (2020-2022) for the
+Commodore PET 4032 in KickAssembler, being ported to the Apple IIgs.
+
+## Layout
+
+- `PETROBOTS12.ASM` / `BACKGROUND_TASKS.ASM` — original KickAssembler (PET) sources
+- `convert.sh` + `convert_kick_vasm.py` — KickAssembler -> vasm (6502 oldstyle) converter
+- `PETROBOTS12.s` / `BACKGROUND_TASKS.s` — converted vasm sources
+- `Makefile` (`make petrobots`) — converts and assembles the PET game into
+  `petrobots.bin` (a bare 6502 binary, origin `$0401`, ~17.9K)
+
+The game is still Commodore PET code. Porting to the IIgs means replacing the
+PET-OS and screen dependencies below.
+
+## PET code that needs to be ported to the IIgs
+
+### 1. Disk / level loading (file I/O) — the big one
+`PETROBOTS12.ASM` loads the tileset and each level from disk using the PET
+BASIC 4 loader:
+- `TILE_LOAD_ROUTINE` (~line 2334) loads `TILENAME` (`tileset.pet`)
+- `MAP_LOAD_ROUTINE` (~line 2364) loads `MAPNAME` (`level-a`)
+- Both set up a PET device-8 filename block (`$D1` length, `$DA/$DB` filename
+  ptr, `$D4` device, `$9D` load/verify) then `JSR $F356`.
+
+On the IIgs this must be rewritten to use the **ProDOS 8 MLI** (`Open` / `Read` /
+`Close` via `JSL $E100A8`), with valid ProDOS filenames/prefixes (`TILESET`,
+`LEVEL-A`, ...) and data loaded into the game RAM areas instead of PET load.
+
+### 2. KERNAL character/byte I/O
+- `JSR $FFD2` (CHROUT) — print routines (e.g. `DISPLAY_LOAD_MESSAGE1`, ~line 273)
+- `JSR $FFE4` (GETIN) — keyboard reads throughout the game loop
+
+### 3. Interrupt/IRQ setup
+`SETUP_INTERRUPT` / `RUNIRQ` (~line 300) install a PET IRQ handler via the PET
+vector `$0090/$0091` and return through the PET IRQ entry `$E455`. On the IIgs
+this must be rewritten for the 65816/IIgs interrupt controller and video IRQ.
+
+### 4. Text screen output + PETSCII encoding
+- Text is written directly to the PET text screen (e.g. `STA $8190,Y`,
+  `$819C,Y`) and via `$FFD2`.
+- Strings are `!SCR` (PET screen codes) / `!PET` (PETSCII) — see the
+  `!SCR`/`!PET` data blocks. On the IIgs these must be re-encoded for the
+  IIgs text/character set and written to IIgs video memory (or the SHR
+  back-buffer used by the intro loader).
+- `PET_SCREEN_SHAKE` and the border-flash code are PET-specific.
+
+### 5. Memory map / zero page
+PET-specific memory assumptions that must be mapped onto the IIgs:
+- Program origin `$0401` and PET BASIC 1 `SYS 1037` stub
+- Game data arrays `$5000`–`$5FFF` (destruct path, tiles, units, map..., 8K
+  `MAP` at `$6000`)
+- PET zero page scratch `$23`–`$39`, filename block `$D1/$DA/$DB/$D4`, pointers
+  `$FB/$FC`, cursor `$31/$32`
+
+### 6. Runtime environment
+The PET program runs under the PET KERNAL (no OS). The IIgs build should run
+under ProDOS 8 so the MLI file calls, keyboard, and video can be driven
+through a thin IIgs BSoS/I/O layer.
+
+## Current IIgs work
+The `intro` loader (vbcc 65816, `make` default) already demonstrates the SHR
+shadowed-memory fast-refresh path used to display `introscreen.png` on
+`petsciirobots.dsk` (ProDOS 800K volume `PETSCIROB`).
