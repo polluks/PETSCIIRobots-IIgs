@@ -11,6 +11,7 @@ Translations:
     < and > low/high bytes    -> unchanged (vasm supports them)
     label = expr              -> unchanged (vasm constant symbols)
 """
+import os
 import re
 import sys
 
@@ -110,6 +111,11 @@ def convert_line(line: str) -> str:
     m0 = re.match(r'^([A-Z]{1,3})(\s+\S)', line)
     if m0 and m0.group(1) in MNEMONICS:
         line = '\t' + line
+    # The IIgs runs under ProDOS 8; the PET KERNAL GETIN ($FFE4) does not
+    # exist there. Route keyboard reads through the IIgs-specific READ_KEY
+    # routine (IIGS_KEYS.s) which reads the $C000/$C010 soft-switches and
+    # translates the resulting ASCII to the PETSCII codes the game checks.
+    line = re.sub(r'JSR\s+\$FFE4', 'JSR READ_KEY', line, flags=re.IGNORECASE)
     # Skip pure comments already handled elsewhere; this handles code lines.
     # Remove the '!to' output directive line entirely.
     if re.match(r'\s*![Tt][Oo]\b', line):
@@ -173,6 +179,13 @@ def main():
             out.append(line)
             continue
         out.append(convert_line(line + '\n').rstrip('\n'))
+    # The IIgs keyboard reader lives in IIGS_KEYS.s. Pull it into the
+    # top-level output (PETROBOTS12.s); BACKGROUND_TASKS.s is already
+    # included by it, so it must not also include this file (READ_KEY
+    # would be defined twice).
+    if os.path.basename(DST) == 'PETROBOTS12.s':
+        out.append('')
+        out.append('  include "IIGS_KEYS.s"')
     with open(DST, 'w') as f:
         f.write('\n'.join(out) + '\n')
     print(f"wrote {DST}")

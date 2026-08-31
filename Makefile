@@ -33,8 +33,10 @@ image_data.h: convert_png.py introscreen.png
 	python3 convert_png.py
 
 # Convert KickAssembler sources to vasm, then assemble the PET game.
-# PETROBOTS12.s includes BACKGROUND_TASKS.s.
-petrobots: PETROBOTS12.s BACKGROUND_TASKS.s
+# PETROBOTS12.s includes BACKGROUND_TASKS.s and IIGS_KEYS.s (which
+# supplies READ_KEY, the IIgs $C000/$C010 keyboard reader replacing
+# the PET GETIN calls).
+petrobots: PETROBOTS12.s BACKGROUND_TASKS.s IIGS_KEYS.s
 	$(VASM) -Fbin -dotdir PETROBOTS12.s -o petrobots.bin
 
 PETROBOTS12.s: PETROBOTS12.ASM convert_kick_vasm.py
