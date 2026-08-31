@@ -37,11 +37,8 @@ image_data.h: convert_png.py introscreen.png
 petrobots: PETROBOTS12.s BACKGROUND_TASKS.s
 	$(VASM) -Fbin -dotdir PETROBOTS12.s -o petrobots.bin
 
-PETROBOTS12.s: PETROBOTS12.ASM convert_kick_vasm.py
-	python3 convert_kick_vasm.py PETROBOTS12.ASM PETROBOTS12.s
-
-BACKGROUND_TASKS.s: BACKGROUND_TASKS.ASM convert_kick_vasm.py
-	python3 convert_kick_vasm.py BACKGROUND_TASKS.ASM BACKGROUND_TASKS.s
+PETROBOTS12.s BACKGROUND_TASKS.s: convert.sh convert_kick_vasm.py
+	./convert.sh
 
 main.o: main.c shr.h image_data.h
 	$(VC) $(TARGET) $(CFLAGS) -c main.c -o $@
