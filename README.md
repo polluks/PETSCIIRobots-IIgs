@@ -71,3 +71,33 @@ through a thin IIgs BSoS/I/O layer.
 The `intro` loader (vbcc 65816, `make` default) already demonstrates the SHR
 shadowed-memory fast-refresh path used to display `introscreen.png` on
 `petsciirobots.dsk` (ProDOS 800K volume `PETSCIROB`).
+
+**MOD music playback (planned):** the intro is slated to play a MOD soundtrack
+using **NinjaTrackerPlus (NTP)**, Ninjaforce's Apple IIgs MOD player. The NTP
+engine (by Jesse Blue) is a 65816 sound-interrupt-driven player whose API is a
+set of `JSL`s (`NTPprepare` / `NTPplay` / `NTPstop` / `NTPsetplayvolume` /
+`NTPgetsongpos`/`NTPgetvuptr`). It requires an `.NTP` song (converted from an
+Amiga MOD) loaded into memory and copies the instruments into the DOC sound
+RAM. Integration points:
+- NTP player source: https://www.ninjaforce.com/html/products_ninjatrackerplus.php#programmers
+- NTP source zip: https://www.ninjaforce.com/downloads/ntpsources.zip
+- Player engine source: https://github.com/antoinevignau/source/tree/main/ntpsources
+- ProDOS 8 integration example: https://github.com/digarok/senseiplay
+- Brutal Deluxe Tool 222 (GS/OS toolset wrapper): http://www.brutaldeluxe.fr/products/apple2gs/tool222/
+
+Because NTP runs from the sound interrupt and the `.NTP` file must already be
+in memory, driving it from the intro needs a ProDOS 8 path that loads the song
+into memory (or a bundled/embedded song) and prepares/plays it while the SHR
+title screen is shown.
+
+## Credits
+- **PETSCII Robots 12** — original game by **David Murray** (2020-2022, Commodore
+  PET 4032, KickAssembler).
+- **NinjaTrackerPlus (NTP)** — Apple IIgs MOD playback engine by **Jesse Blue** /
+  **Ninjaforce** (https://www.ninjaforce.com/html/products_ninjatrackerplus.php
+  #programmers). Used for the planned MOD soundtrack on the IIgs intro.
+- **Brutal Deluxe (Antoine Vignau / Olivier Zardini)** — Tool 222, the GS/OS
+  toolset wrapper around NTP.
+- **Digarok (Brian "digarok" Green)** — SenseiPlay, a ProDOS 8 NTP player used as
+  a reference for the engine's integration.
+- Apple IIgs SHR shadowed-memory refresh technique (see `shr.s` / `shr.c`).
