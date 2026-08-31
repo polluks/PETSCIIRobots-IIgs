@@ -1,7 +1,8 @@
 # PETSCII Robots (Apple IIgs port)
 
-PETSCII Robots 12, originally written by David Murray (2020-2022) for the
-Commodore PET 4032 in KickAssembler, being ported to the Apple IIgs.
+Attack of the PETSCII Robots (version 12), originally written by David Murray
+(2020-2022) for the Commodore PET 4032 in KickAssembler, being ported to the
+Apple IIgs.
 
 ## Layout
 
@@ -91,8 +92,8 @@ into memory (or a bundled/embedded song) and prepares/plays it while the SHR
 title screen is shown.
 
 ## Credits
-- **PETSCII Robots 12** — original game by **David Murray** (2020-2022, Commodore
-  PET 4032, KickAssembler).
+- **Attack of the PETSCII Robots** — original game by **David Murray** (2020-2022,
+  Commodore PET 4032, KickAssembler).
 - **NinjaTrackerPlus (NTP)** — Apple IIgs MOD playback engine by **Jesse Blue** /
   **Ninjaforce** (https://www.ninjaforce.com/html/products_ninjatrackerplus.php
   #programmers). Used for the planned MOD soundtrack on the IIgs intro.
