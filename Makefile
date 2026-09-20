@@ -45,6 +45,20 @@ PETROBOTS12.s: PETROBOTS12.ASM convert_kick_vasm.py
 BACKGROUND_TASKS.s: BACKGROUND_TASKS.ASM convert_kick_vasm.py
 	python3 convert_kick_vasm.py BACKGROUND_TASKS.ASM BACKGROUND_TASKS.s
 
+# Build the MOD->NTP converter (host cc) and convert every MOD in Music/ into ntp/.
+ntpconvert: ntpconverter.c
+	cc -O2 -Wall ntpconverter.c -o ntpconvert
+
+ntp: ntpconvert
+	mkdir -p ntp
+	@for f in Music/*; do \
+		if [ -f "$$f" ]; then \
+			b="$${f#Music/}"; \
+			b="$${b#mod.}"; \
+			./ntpconvert "$$f" STREAM_ALLOW "ntp/$$b.ntp" || exit 1; \
+		fi \
+	done
+
 main.o: main.c shr.h image_data.h
 	$(VC) $(TARGET) $(CFLAGS) -c main.c -o $@
 
@@ -60,4 +74,4 @@ intro: $(OBJS)
 clean:
 	rm -f *.o intro intro.map mapfile petrobots.bin
 
-.PHONY: all clean dsk petrobots
+.PHONY: all clean dsk petrobots ntp ntpconvert

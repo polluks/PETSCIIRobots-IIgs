@@ -6,3 +6,6 @@ petrobots.bin
 err.log
 __pycache__/
 *.pyc
+
+# MOD->NTP converter binary (generated NTP songs under ntp/ are committed)
+ntpconvert
