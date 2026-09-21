@@ -146,11 +146,15 @@ ntp_load_file:
         sta Z_PRM+1              ; pathname 16-bit pointer (bank 0)
         lda Z_PATH+1
         sta Z_PRM+2
-        stz Z_PRM+3              ; io buffer number = 0
+        a16
+        lda #<ntp_buf
+        sta Z_PRM+3              ; io buffer 16-bit pointer (Z_PRM+3/+4)
+        a8
         jsr mli_open
         a16
         bne ntp_lf_err           ; error code in A
-        lda Z_PRM+4              ; refnum (result appended by MLI)
+        a8
+        lda Z_PRM+5              ; refnum (single-byte result)
         sta Z_REF
 
         ; -------------------------- READ loop ---------------------------
@@ -158,22 +162,15 @@ rdlp    a8
         lda #4
         sta Z_PRM                ; pcount
         lda Z_REF
-        sta Z_PRM+1
-        lda Z_REF+1
-        sta Z_PRM+2
-        lda #<ntp_buf
-        sta Z_PRM+3
-        lda #^ntp_buf
-        sta Z_PRM+4              ; buffer bank = 0
-        stz Z_PRM+5
-        lda #<READ_CHUNK
-        sta Z_PRM+6
-        lda #>READ_CHUNK
-        sta Z_PRM+7
+        sta Z_PRM+1              ; refnum (single byte)
         a16
+        lda #<ntp_buf
+        sta Z_PRM+2              ; data buffer 16-bit pointer (Z_PRM+2/+3)
+        lda #READ_CHUNK
+        sta Z_PRM+4              ; request count (Z_PRM+4/+5)
         jsr mli_read
         bne ntp_lf_readerr       ; error code in A
-        lda Z_PRM+8              ; transfer count (word result)
+        lda Z_PRM+6              ; transfer count (word result)
         tay
         beq ntp_lf_eof           ; 0 bytes -> end of file
         sta Z_COUNT
@@ -200,9 +197,7 @@ ntp_lf_eof:
         lda #1
         sta Z_PRM                ; pcount
         lda Z_REF
-        sta Z_PRM+1
-        lda Z_REF+1
-        sta Z_PRM+2
+        sta Z_PRM+1              ; refnum (single byte)
         jsr mli_close            ; ignore any close error
         a8
         lda Z_ERR
