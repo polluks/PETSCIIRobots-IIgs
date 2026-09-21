@@ -175,8 +175,10 @@ INIT_GAME:
 	STA	KEYTIMER
 	JMP	MAIN_GAME_LOOP
 
-TILENAME byte $54, $49, $4C, $45, $53, $45, $54, $2E, $50, $45, $54
-MAPNAME byte $4C, $45, $56, $45, $4C, $2D, $41
+; ProDOS pathnames (length-prefixed). MAPNAME's last byte is the level
+; letter, patched by DISPLAY_MAP_NAME (ProDOS names cannot contain '-').
+TILENAME byte 22, "/PETSCIIROBOTS/TILESET"
+MAPNAME byte 22, "/PETSCIIROBOTS/LEVEL.A"
 SNDNAME byte $50, $44, $52, $56, $2D, $50, $45, $54
 LOADMSG1 byte $4C, $4F, $41, $44, $49, $4E, $47, $20, $54, $49, $4C, $45, $53, $2E, $2E, $2E, 13
 LOADMSG2 byte 147, $4C, $4F, $41, $44, $49, $4E, $47, $20, $4D, $41, $50, $2E, $2E, $2E, 13
@@ -258,9 +260,9 @@ DETECT_ROM_VERSION:
 	STA	DETECTMSG+9
 	LDA	#2
 	STA	BASICROM
-	LDA	#$22
-	STA	LDR1+1
-	STA	LDR2+1
+;	LDA	#$22	;PET BASIC ROM: patch LOAD vector ($F356->$F322)
+;	STA	LDR1+1	;not used on the IIgs (disk loading is in IIGS_LOAD.s)
+;	STA	LDR2+1
 	;NOW DISLPAY MESSAGE
 DET0:	LDY	#0
 DET1:	LDA	DETECTMSG,Y
@@ -2335,18 +2337,19 @@ DECTEMP byte $00
 
 ; The following routine loads the tileset from disk
 TILE_LOAD_ROUTINE:	
-	LDA	#11	;LENGTH OF FILENAME
-	STA	$D1	;LENGTH OF FILENAME
 	LDA	#<TILENAME
-	STA	$DA	;LOW BYTE OF FILENAME
+	STA	LOAD_NAME
 	LDA	#>TILENAME
-	STA	$DB	;HIGH BYTE OF FILENAME
-	LDA	#08	;DEVICE NUMBER 8
-	STA	$D4	;DEVICE NUMBER
+	STA	LOAD_NAME+1
 	LDA	#$00
-	STA	$9D	;load/verify (0=load 1=verify)
-LDR1:	JSR	$F356 	;LOAD ROUTINE (USE $F322 IN BASIC 2)
-	RTS
+	STA	LOAD_DST
+	LDA	#$50
+	STA	LOAD_DST+1	;tileset payload -> $5000
+	LDA	#$00
+	STA	LOAD_LEN
+	LDA	#$0B
+	STA	LOAD_LEN+1	;2816 bytes (DESTRUCT_PATH + 10 tile tables)
+	JMP	PLAT_LOAD_FILE
 ; The following routine loads the tileset from disk
 
 ;SOUND_LOAD_ROUTINE:	
@@ -2365,18 +2368,19 @@ LDR1:	JSR	$F356 	;LOAD ROUTINE (USE $F322 IN BASIC 2)
 
 ; The following routine loads the map from disk
 MAP_LOAD_ROUTINE:	
-	LDA	#7	;LENGTH OF FILENAME
-	STA	$D1	;LENGTH OF FILENAME
 	LDA	#<MAPNAME
-	STA	$DA	;LOW BYTE OF FILENAME
+	STA	LOAD_NAME
 	LDA	#>MAPNAME
-	STA	$DB	;HIGH BYTE OF FILENAME
-	LDA	#08	;DEVICE NUMBER 8
-	STA	$D4	;DEVICE NUMBER
+	STA	LOAD_NAME+1
 	LDA	#$00
-	STA	$9D	;load/verify (0=load 1=verify)
-LDR2:	JSR	$F356 	;LOAD ROUTINE (USE $F322 IN BASIC 2)
-	RTS
+	STA	LOAD_DST
+	LDA	#$5D
+	STA	LOAD_DST+1	;unit block + filler -> $5D00
+	LDA	#$00
+	STA	LOAD_LEN
+	LDA	#$23
+	STA	LOAD_LEN+1	;8960 bytes ($0300 units/spare + $2000 map at $6000)
+	JMP	PLAT_LOAD_FILE
 
 DISPLAY_GAME_SCREEN:
 	LDA	#<SCR_TEXT
@@ -3328,7 +3332,7 @@ DMN1:	LDA	($FB),Y
 	LDA	SELECTED_MAP
 	CLC
 	ADC	#65
-	STA	MAPNAME+6
+	STA	MAPNAME+22	;last char of "/PETSCIIROBOTS/LEVEL.A"
 	RTS
 
 CALC_MAP_NAME:
@@ -5189,3 +5193,4 @@ IN_GAME_MUSIC3:
 
 
   include "IIGS_KEYS.s"
+  include "IIGS_LOAD.s"

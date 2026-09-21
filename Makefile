@@ -10,7 +10,7 @@
 
 VBCC    ?= /root/ai/vbcc6809/vbcc6809_linux/vbcc
 VC      = $(VBCC)/bin/vc
-VASM    = $(VBCC)/bin/vasm6502_oldstyle
+VASM    ?= vasm6502_oldstyle
 TARGET  = +iigs
 
 ASFLAGS = -816 -vobj3 -quiet -nowarn=62 -opt-branch -ldots -Fvobj
@@ -28,12 +28,17 @@ OBJS = main.o shr.o shr_asm.o NTPMUSIC.o
 all: intro
 
 # Build the 800K ProDOS disk (PETSCIIROBOTS) containing the INTRO executable,
-# the NTP player and the title song (requires 2 MB of RAM on the IIgs).
+# the NTP player and title song, and the game data (tileset + levels) loaded
+# at runtime by IIGS_LOAD.s (requires 2 MB of RAM on the IIgs).
 dsk: intro
 	$(AC) -pro800 petsciirobots.dsk PETSCIIROBOTS
 	$(AC) -p petsciirobots.dsk INTRO EXE 2000 < intro
 	$(AC) -p petsciirobots.dsk NTPPLAYER UNK 0 < ntp/NTPPLAYER.bin
 	$(AC) -p petsciirobots.dsk TITLE.NTP UNK 0 < "$(NTP_SONG)"
+	$(AC) -p petsciirobots.dsk TILESET BIN 0x5000 < deploy/TILESET
+	@for l in A B C D E F G H I J K; do \
+		$(AC) -p petsciirobots.dsk LEVEL.$$l BIN 0x5D00 < deploy/LEVEL-$$l; \
+	done
 
 # Convert the PNG into screen.bin and image_data.h
 image_data.h: convert_png.py introscreen.png
@@ -43,7 +48,7 @@ image_data.h: convert_png.py introscreen.png
 # PETROBOTS12.s includes BACKGROUND_TASKS.s and IIGS_KEYS.s (which
 # supplies READ_KEY, the IIgs $C000/$C010 keyboard reader replacing
 # the PET GETIN calls).
-petrobots: PETROBOTS12.s BACKGROUND_TASKS.s IIGS_KEYS.s
+petrobots: PETROBOTS12.s BACKGROUND_TASKS.s IIGS_KEYS.s IIGS_LOAD.s
 	$(VASM) -Fbin -dotdir PETROBOTS12.s -o petrobots.bin
 
 PETROBOTS12.s: PETROBOTS12.ASM convert_kick_vasm.py

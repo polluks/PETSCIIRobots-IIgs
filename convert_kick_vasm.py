@@ -164,6 +164,92 @@ def convert_line(line: str) -> str:
     return line
 
 
+# IIgs game port: replacement for the two PET KERNAL LOAD routines.  They now
+# stage LOAD_NAME / LOAD_DST / LOAD_LEN for IIGS_LOAD.s (PLAT_LOAD_FILE), which
+# loads the ProDOS files TILESET / LEVEL.x straight into game RAM.
+TILE_LOAD_BODY = (
+    'TILE_LOAD_ROUTINE:\t\n'
+    '\tLDA\t#<TILENAME\n'
+    '\tSTA\tLOAD_NAME\n'
+    '\tLDA\t#>TILENAME\n'
+    '\tSTA\tLOAD_NAME+1\n'
+    '\tLDA\t#$00\n'
+    '\tSTA\tLOAD_DST\n'
+    '\tLDA\t#$50\n'
+    '\tSTA\tLOAD_DST+1\t;tileset payload -> $5000\n'
+    '\tLDA\t#$00\n'
+    '\tSTA\tLOAD_LEN\n'
+    '\tLDA\t#$0B\n'
+    '\tSTA\tLOAD_LEN+1\t;2816 bytes (DESTRUCT_PATH + 10 tile tables)\n'
+    '\tJMP\tPLAT_LOAD_FILE\n'
+)
+MAP_LOAD_BODY = (
+    'MAP_LOAD_ROUTINE:\t\n'
+    '\tLDA\t#<MAPNAME\n'
+    '\tSTA\tLOAD_NAME\n'
+    '\tLDA\t#>MAPNAME\n'
+    '\tSTA\tLOAD_NAME+1\n'
+    '\tLDA\t#$00\n'
+    '\tSTA\tLOAD_DST\n'
+    '\tLDA\t#$5D\n'
+    '\tSTA\tLOAD_DST+1\t;unit block + filler -> $5D00\n'
+    '\tLDA\t#$00\n'
+    '\tSTA\tLOAD_LEN\n'
+    '\tLDA\t#$23\n'
+    '\tSTA\tLOAD_LEN+1\t;8960 bytes ($0300 units/spare + $2000 map at $6000)\n'
+    '\tJMP\tPLAT_LOAD_FILE\n'
+)
+
+
+def apply_iigs_game_patches(text: str) -> str:
+    """Apply the IIgs game-port rewrites to the converted PETROBOTS12.s.
+
+    Kept here (rather than hand-edited into the .s) so that regenerating the
+    .s from the original KickAssembler source preserves the port.
+    """
+    def sub_once(pattern: str, repl: str, what: str, flags: int = 0) -> None:
+        nonlocal text
+        new, n = re.subn(pattern, repl, text, flags=flags)
+        if n != 1:
+            raise SystemExit(
+                f"convert_kick_vasm.py: expected exactly 1 {what} to patch, found {n}")
+        text = new
+
+    # 1. PET filenames -> ProDOS pathnames (length-prefixed).  The level letter
+    #    is the last byte of MAPNAME and is patched at runtime.
+    sub_once(
+        r'^TILENAME[ \t]+byte[^\n]*\n^MAPNAME[ \t]+byte[^\n]*\n',
+        '; ProDOS pathnames (length-prefixed). MAPNAME\'s last byte is the level\n'
+        '; letter, patched by DISPLAY_MAP_NAME (ProDOS names cannot contain \'-\').\n'
+        'TILENAME byte 22, "/PETSCIIROBOTS/TILESET"\n'
+        'MAPNAME byte 22, "/PETSCIIROBOTS/LEVEL.A"\n',
+        'TILENAME/MAPNAME', flags=re.MULTILINE)
+
+    # 2. Do not patch the PET LOAD vector ($F356 -> $F322) from
+    #    DETECT_ROM_VERSION; the IIgs uses IIGS_LOAD.s instead.
+    sub_once(
+        r'^\tLDA\t#\$22\n\tSTA\tLDR1\+1\n\tSTA\tLDR2\+1\n',
+        ';\tLDA\t#$22\t;PET BASIC ROM: patch LOAD vector ($F356->$F322)\n'
+        ';\tSTA\tLDR1+1\t;not used on the IIgs (disk loading is in IIGS_LOAD.s)\n'
+        ';\tSTA\tLDR2+1\n',
+        'DETECT_ROM_VERSION LOAD patch', flags=re.MULTILINE)
+
+    # 3/4. Tileset and level loaders -> PLAT_LOAD_FILE.
+    sub_once(
+        r'^TILE_LOAD_ROUTINE:[^\n]*\n(?:\t[^\n]*\n)*?LDR1:\tJSR\t\$F356[^\n]*\n\tRTS\n',
+        TILE_LOAD_BODY, 'TILE_LOAD_ROUTINE', flags=re.MULTILINE)
+    sub_once(
+        r'^MAP_LOAD_ROUTINE:[^\n]*\n(?:\t[^\n]*\n)*?LDR2:\tJSR\t\$F356[^\n]*\n\tRTS\n',
+        MAP_LOAD_BODY, 'MAP_LOAD_ROUTINE', flags=re.MULTILINE)
+
+    # 5. The level letter is the last byte of the ProDOS pathname.
+    sub_once(r'\tSTA\tMAPNAME\+6\b',
+             '\tSTA\tMAPNAME+22\t;last char of "/PETSCIIROBOTS/LEVEL.A"',
+             'MAPNAME+6 patch')
+
+    return text
+
+
 def main():
     with open(SRC) as f:
         raw = f.read()
@@ -179,13 +265,17 @@ def main():
             out.append(line)
             continue
         out.append(convert_line(line + '\n').rstrip('\n'))
-    # The IIgs keyboard reader lives in IIGS_KEYS.s. Pull it into the
-    # top-level output (PETROBOTS12.s); BACKGROUND_TASKS.s is already
-    # included by it, so it must not also include this file (READ_KEY
-    # would be defined twice).
+    # The IIgs keyboard reader lives in IIGS_KEYS.s and the disk loader in
+    # IIGS_LOAD.s. Pull them into the top-level output (PETROBOTS12.s);
+    # BACKGROUND_TASKS.s is already included by it, so it must not also
+    # include this file (READ_KEY would be defined twice).
+    text = '\n'.join(out)
     if os.path.basename(DST) == 'PETROBOTS12.s':
+        text = apply_iigs_game_patches(text)
+        out = text.split('\n')
         out.append('')
         out.append('  include "IIGS_KEYS.s"')
+        out.append('  include "IIGS_LOAD.s"')
     with open(DST, 'w') as f:
         f.write('\n'.join(out) + '\n')
     print(f"wrote {DST}")
