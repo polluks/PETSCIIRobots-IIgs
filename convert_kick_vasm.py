@@ -200,6 +200,34 @@ MAP_LOAD_BODY = (
     '\tJMP\tPLAT_LOAD_FILE\n'
 )
 
+# IIgs 60 Hz VBL interrupt.  RUNIRQ is installed as the ProDOS user interrupt
+# vector at $03FE/$03FF (bank $00), which the IIgs firmware calls after its own
+# interrupt handler.  The firmware enters that handler with DBR=$00, DP=$00,
+# 8-bit registers, in native mode, and the handler returns with RTI.  Bit 3 of
+# INTEN ($C041) enables the VBL interrupt; a write to CLRVBLINT ($C047) clears
+# it.  (Firmware Reference ch.8; Hardware Reference VGC/INTEN registers.)
+SETUP_INTERRUPT_BODY = (
+    'SETUP_INTERRUPT:\n'
+    '\tSEI\t\t\t; Disable interrupts while installing the handler\n'
+    '\tLDA\t#<RUNIRQ\t; point the ProDOS user IRQ vector at RUNIRQ\n'
+    '\tSTA\t$03FE\t\t; ($03FE/$03FF, bank $00)\n'
+    '\tLDA\t#>RUNIRQ\n'
+    '\tSTA\t$03FF\n'
+    '\tLDA\t$C041\t\t; INTEN: enable VBL interrupt (bit 3)\n'
+    '\tORA\t#$08\n'
+    '\tSTA\t$C041\n'
+    '\tLDA\t#$00\n'
+    '\tSTA\t$C047\t\t; clear any pending VBL interrupt\n'
+    '\tCLI\t\t\t; Reenable interrupts\n'
+    '\tRTS\n'
+)
+
+IRQ31_BODY = (
+    'IRQ31:\tLDA\t#$00\n'
+    '\tSTA\t$C047\t\t; clear the VBL interrupt flag\n'
+    '\tRTI\t\t\t; back to the firmware interrupt handler\n'
+)
+
 
 def apply_iigs_game_patches(text: str) -> str:
     """Apply the IIgs game-port rewrites to the converted PETROBOTS12.s.
@@ -246,6 +274,26 @@ def apply_iigs_game_patches(text: str) -> str:
     sub_once(r'\tSTA\tMAPNAME\+6\b',
              '\tSTA\tMAPNAME+22\t;last char of "/PETSCIIROBOTS/LEVEL.A"',
              'MAPNAME+6 patch')
+
+    # 6. PET IRQ hookup -> IIgs user interrupt vector ($03FE/$03FF) + VBL.
+    sub_once(
+        r'^SETUP_INTERRUPT:\n(?:\t[^\n]*\n){11}',
+        SETUP_INTERRUPT_BODY, 'SETUP_INTERRUPT', flags=re.MULTILINE)
+
+    # 7. Return from the handler through the firmware instead of the PET ROM.
+    sub_once(
+        r'^IRQ31:\tJMP\t\$E455[^\n]*\n',
+        IRQ31_BODY, 'IRQ31 return', flags=re.MULTILINE)
+
+    # 8. The firmware enters the handler in native mode; force 8-bit A/X so the
+    #    6502 body executes correctly.  Assembled as raw opcode bytes because
+    #    the game is assembled for the plain 6502 (enabling -816 would make the
+    #    `da` directives in IIGS_LOAD.s emit 3-byte addresses and break MLI).
+    sub_once(
+        r'^RUNIRQ:\n',
+        'RUNIRQ:\n'
+        '\tdfb\t$E2, $30\t\t; SEP #$30 (select 8-bit A/X in native mode)\n',
+        'RUNIRQ entry', flags=re.MULTILINE)
 
     return text
 

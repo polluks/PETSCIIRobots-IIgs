@@ -51,10 +51,15 @@ The data (from the proven Apple III port) is kept in `deploy/` and placed on
   shift-M cheats) and PET-only keys (RUN/STOP `#03`, HOME `#19`, custom-key
   entry via `#3A`) still need IIgs equivalents.
 
-### 3. Interrupt/IRQ setup
-`SETUP_INTERRUPT` / `RUNIRQ` (~line 300) install a PET IRQ handler via the PET
-vector `$0090/$0091` and return through the PET IRQ entry `$E455`. On the IIgs
-this must be rewritten for the 65816/IIgs interrupt controller and video IRQ.
+### 3. Interrupt/IRQ setup — done
+`SETUP_INTERRUPT` installs `RUNIRQ` as the ProDOS user interrupt vector at
+`$03FE/$03FF` (bank `$00`) and enables the 60 Hz VBL interrupt in INTEN
+(`$C041`, bit 3). The IIgs firmware calls that vector after its own interrupt
+handler, in native mode with 8-bit registers (`RUNIRQ` begins with `SEP #$30`).
+`RUNIRQ` runs the music/game-clock/water-animation tick and the background
+timers, then clears the VBL flag through CLRVBLINT (`$C047`) and returns with
+`RTI`. `PLAT_LOAD_FILE` masks the VBL interrupt during ProDOS MLI disk I/O so
+the handler cannot clobber ProDOS zero page mid-call.
 
 ### 4. Text screen output + PETSCII encoding
 - Text is written directly to the PET text screen (e.g. `STA $8190,Y`,

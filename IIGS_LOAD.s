@@ -33,6 +33,17 @@ IIGS_IOBUF      = $4C00         ; 1K OPEN io buffer: page-aligned, free RAM
 ;   LOAD_LEN  (2) = payload bytes to read (after the 2-byte header)
 ; Returns carry clear on success, set on error.
 PLAT_LOAD_FILE:
+        ; The VBL interrupt handler shares zero page with ProDOS MLI, so mask
+        ; the VBL interrupt (INTEN bit 3) for the duration of the disk I/O.
+        ; INTEN is saved and restored exactly, so a load that happens before
+        ; SETUP_INTERRUPT (the tileset) does not leave VBL enabled with no
+        ; handler installed.  The I flag is left alone, so MLI/disk firmware
+        ; may still use interrupts if it needs them.
+        LDA $C041
+        STA PLF_INTEN
+        AND #$F7
+        STA $C041
+
         ; ---------------------------- OPEN ---------------------------------
         LDA LOAD_NAME
         STA IIGS_PB+1
@@ -44,6 +55,7 @@ PLAT_LOAD_FILE:
         STA IIGS_PB+4
         JSR IIGS_MLI_OPEN
         BCC PLF_OPENOK
+        JSR PLF_INTEN_RESTORE
         SEC                     ; OPEN failed: nothing to close
         RTS
 PLF_OPENOK:
@@ -103,11 +115,19 @@ PLF_CHUNK:
         JMP PLF_LOOP
 PLF_DONE:
         JSR IIGS_MLI_CLOSE
+        JSR PLF_INTEN_RESTORE
         CLC
         RTS
 PLF_ERR:
         JSR IIGS_MLI_CLOSE
+        JSR PLF_INTEN_RESTORE
         SEC
+        RTS
+
+; Restore INTEN to its pre-load value.
+PLF_INTEN_RESTORE:
+        LDA PLF_INTEN
+        STA $C041
         RTS
 
 ; --------------------------- MLI dispatchers -------------------------------
@@ -139,3 +159,4 @@ LOAD_DST:   dsb 2
 LOAD_LEN:   dsb 2
 IIGS_PB:    dsb 8
 IIGS_HDR:   dsb 2
+PLF_INTEN:  dsb 1

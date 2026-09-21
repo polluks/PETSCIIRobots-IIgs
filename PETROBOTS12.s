@@ -302,16 +302,17 @@ DLM3:	LDA	($FB),Y
 LOAD_MSG2:	 byte $0C, $0F, $01, $04, $09, $0E, $07, $20, $0D, $01, $10, $3A
 
 SETUP_INTERRUPT:
-	SEI			; Disable interrupt routine
-	LDA	$0090		; get old address
-	STA	IRQ31+1		
-	LDA	$0091		; get old address
-	STA	IRQ31+2	
-	LDA	#<RUNIRQ	; Setup IRQ to visit my routine RUNIRQ before
-	STA	$0090		; doing the usual IRQ routine.
+	SEI			; Disable interrupts while installing the handler
+	LDA	#<RUNIRQ	; point the ProDOS user IRQ vector at RUNIRQ
+	STA	$03FE		; ($03FE/$03FF, bank $00)
 	LDA	#>RUNIRQ
-	STA	$0091
-	CLI			; Reenable routine.
+	STA	$03FF
+	LDA	$C041		; INTEN: enable VBL interrupt (bit 3)
+	ORA	#$08
+	STA	$C041
+	LDA	#$00
+	STA	$C047		; clear any pending VBL interrupt
+	CLI			; Reenable interrupts
 	RTS
 
 ;This is the routine that runs every 60 seconds from the IRQ.
@@ -320,6 +321,7 @@ SETUP_INTERRUPT:
 ;that cycle.  BGTIMER2 is a count-down to zero and then stays
 ;there.
 RUNIRQ:
+	dfb	$E2, $30		; SEP #$30 (select 8-bit A/X in native mode)
 	;LDA	ARP_MODE	;ARP ROUTINE DISABLED
 	;CMP	#00		;SINCE NO MUSIC IS USING IT
 	;BEQ	IRQ20
@@ -341,7 +343,9 @@ IRQ30:	LDA	BORDER
 	CMP	#0
 	BEQ	IRQ31
 	DEC	BORDER
-IRQ31:	JMP	$E455		; Back to usual IRQ routine
+IRQ31:	LDA	#$00
+	STA	$C047		; clear the VBL interrupt flag
+	RTI			; back to the firmware interrupt handler
 BGTIMER1 byte 00
 BGTIMER2 byte 00
 KEYTIMER byte 00	;Used for repeat of movement
