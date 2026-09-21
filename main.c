@@ -12,6 +12,9 @@
 
 extern void StartUp(void);   /* GS/OS startup stub if used */
 
+void ntp_music_start(void);   /* NTPMUSIC.s: load NTP player + title song */
+void ntp_music_stop(void);    /* NTPMUSIC.s: shut the music down */
+
 int main(void)
 {
     /* The image was pre-converted to 320x200, 16 colors, and stored as
@@ -30,9 +33,15 @@ int main(void)
 
     shr_show();
 
+    /* Start the NinjaTrackerPlus music (loads NTPPLAYER + TITLE.NTP from
+   /PETSCIIROBOTS and plays the song through the DOC sound interrupt). */
+    ntp_music_start();
+
     /* Hold the title screen until a key is pressed (simplified). */
     while ((*(volatile unsigned char *)0x00E0C000L & 0x80) == 0)
         ;
+
+    ntp_music_stop();
 
     return 0;
 }

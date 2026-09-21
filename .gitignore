@@ -4,6 +4,8 @@ intro
 *.ASM
 petrobots.bin
 err.log
+a.out
+mapfile
 __pycache__/
 *.pyc
 

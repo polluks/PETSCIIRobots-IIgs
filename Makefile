@@ -16,17 +16,24 @@ TARGET  = +iigs
 ASFLAGS = -816 -vobj3 -quiet -nowarn=62 -opt-branch -ldots -Fvobj
 CFLAGS  = -O2
 
-# AppleCommander jar used to build the ProDOS disk image (make dsk).
-AC_JAR  ?= AppleCommander-ac-14.0.jar
+# AppleCommander (on PATH as `ac`) used to build the ProDOS disk image (make dsk).
+AC      ?= ac
 
-OBJS = main.o shr.o shr_asm.o
+# NTP music: player binary + title song copied to the disk as NTPPLAYER and
+# TITLE.NTP (NTPMUSIC.s reads these at runtime from /PETSCIIROBOTS).
+NTP_SONG ?= ntp/robot attack.ntp
+
+OBJS = main.o shr.o shr_asm.o NTPMUSIC.o
 
 all: intro
 
-# Build the 800K ProDOS disk (PETSCIROB) containing the INTRO executable.
+# Build the 800K ProDOS disk (PETSCIIROBOTS) containing the INTRO executable,
+# the NTP player and the title song (requires 2 MB of RAM on the IIgs).
 dsk: intro
-	java -jar $(AC_JAR) -pro800 petsciirobots.dsk PETSCIROB
-	java -jar $(AC_JAR) -p petsciirobots.dsk INTRO EXE 2000 < intro
+	$(AC) -pro800 petsciirobots.dsk PETSCIIROBOTS
+	$(AC) -p petsciirobots.dsk INTRO EXE 2000 < intro
+	$(AC) -p petsciirobots.dsk NTPPLAYER UNK 0 < ntp/NTPPLAYER.bin
+	$(AC) -p petsciirobots.dsk TITLE.NTP UNK 0 < "$(NTP_SONG)"
 
 # Convert the PNG into screen.bin and image_data.h
 image_data.h: convert_png.py introscreen.png
@@ -66,6 +73,9 @@ shr.o: shr.c shr.h
 	$(VC) $(TARGET) $(CFLAGS) -c shr.c -o $@
 
 shr_asm.o: shr.s
+	$(VASM) $(ASFLAGS) $< -o $@
+
+NTPMUSIC.o: NTPMUSIC.s
 	$(VASM) $(ASFLAGS) $< -o $@
 
 intro: $(OBJS)
