@@ -36,7 +36,7 @@ dsk: intro
 	$(AC) -p petsciirobots.dsk NTPPLAYER UNK 0 < ntp/NTPPLAYER.bin
 	$(AC) -p petsciirobots.dsk TITLE.NTP UNK 0 < "$(NTP_SONG)"
 	$(AC) -p petsciirobots.dsk TILESET BIN 0x5000 < deploy/TILESET
-	@for l in A B C D E F G H I J K; do \
+	@for l in A B C D E F G H I J K L M N; do \
 		$(AC) -p petsciirobots.dsk LEVEL.$$l BIN 0x5D00 < deploy/LEVEL-$$l; \
 	done
 
