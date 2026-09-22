@@ -40,7 +40,7 @@ at `$6000`). Pathnames are `/PETSCIIROBOTS/TILESET` and
 
 The data (levels A–J from the Apple III port, K–N from the C128/C64-REU ports, which match the
 original source) is kept in `deploy/` and placed on
-`petsciirobots.dsk` by `make dsk` as the ProDOS BIN files `TILESET` (aux
+`petsciirobots.dsk` by `make dist` as the ProDOS BIN files `TILESET` (aux
 `$5000`) and `LEVEL.A` … `LEVEL.N` (aux `$5D00`).
 
 ### 2. KERNAL character/byte I/O
@@ -119,7 +119,7 @@ How it is wired up:
   - `/PETSCIIROBOTS/NTPPLAYER` — the NTP player engine (from the official
     release, `ntp/NTPPLAYER.bin`), loaded to `$0F0000`;
   - `/PETSCIIROBOTS/TITLE.NTP` — the title song (default `ntp/robot attack.ntp`,
-    selectable via `make dsk NTP_SONG=...`), loaded to `$100000` through an
+    selectable via `make dist NTP_SONG=...`), loaded to `$100000` through an
     8K bank-0 staging buffer with automatic 24-bit bank rollover.
 - The engine is then driven with `NTPprepare` (instruments into DOC sound
   RAM + sound-interrupt install at `$E1002C`), `NTPsetplayvolume(180)` and
@@ -128,15 +128,17 @@ How it is wired up:
   the song consumes the DOC sound interrupt, not the game's cycles.
 
 **Hardware requirement:** 2 MB or more of RAM on the IIgs (the engine runs
-from bank `$0F` and the song from banks `$10/$11`).
+from bank `$0F` and the song from banks `$10/$11`). On machines with less
+than 2 MB the intro auto-detects the missing bank `$10` RAM and silently
+skips the music (the title screen just has no soundtrack).
 
 Making a new title disk with a different song:
 
-    make dsk NTP_SONG="ntp/lose.ntp"
+    make dist NTP_SONG="ntp/lose.ntp"
 
 Available songs are the converted MODs in `ntp/` (get psyched, lose,
 metal heads, metallic bop amiga, robot attack, rushin in, soundfx, win).
-`make dsk` now places all of them on the disk (`GET.PSYCHED.NTP`,
+`make dist` now places all of them on the disk (`GET.PSYCHED.NTP`,
 `LOSE.NTP`, `METAL.HEADS.NTP`, `METALLIC.BOP.NT`, `ROBOT.ATTACK.NT`,
 `RUSHIN.IN.NTP`, `SOUNDFX.NTP`, `WIN.NTP`) plus the title song as
 `TITLE.NTP` (default `robot attack`); the intro plays only `TITLE.NTP`.

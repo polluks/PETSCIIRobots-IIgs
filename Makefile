@@ -16,7 +16,7 @@ TARGET  = +iigs
 ASFLAGS = -816 -vobj3 -quiet -nowarn=62 -opt-branch -ldots -Fvobj
 CFLAGS  = -O2
 
-# AppleCommander (on PATH as `ac`) used to build the ProDOS disk image (make dsk).
+# AppleCommander (on PATH as `ac`) used to build the ProDOS disk image (make dist).
 AC      ?= ac
 
 # NTP music: player binary + title song copied to the disk as NTPPLAYER and
@@ -30,7 +30,7 @@ all: intro
 # Build the 800K ProDOS disk (PETSCIIROBOTS) containing the INTRO executable,
 # the NTP player and title song, and the game data (tileset + levels) loaded
 # at runtime by IIGS_LOAD.s (requires 2 MB of RAM on the IIgs).
-dsk: intro
+dist: intro
 	$(AC) -pro800 petsciirobots.dsk PETSCIIROBOTS
 	$(AC) -p petsciirobots.dsk INTRO EXE 2000 < intro
 	$(AC) -p petsciirobots.dsk NTPPLAYER UNK 0 < ntp/NTPPLAYER.bin
@@ -97,4 +97,4 @@ intro: $(OBJS)
 clean:
 	rm -f *.o intro intro.map mapfile petrobots.bin
 
-.PHONY: all clean dsk petrobots ntp ntpconvert
+.PHONY: all clean dist petrobots ntp ntpconvert

@@ -69,6 +69,23 @@ zpsv    lda $D0,x               ; save ZP scratch $D0-$EF (words) on native stac
         cpx #$20
         bne zpsv
 
+        ; ---- If there is less than 2 MB of RAM, mute the music ----------
+        ; Bank $10 ($100000) only exists on a 2 MB (or larger) IIgs. The NTP
+        ; player lives in bank $0F and the title song needs banks $10/$11,
+        ; so probe bank $10 and skip playback on smaller machines (writes to
+        ; non-existent RAM are ignored, reads return phantom bus data).
+        a16
+        lda #$A55A
+        sta $100000
+        lda #$55AA
+        sta $100400
+        lda $100000
+        cmp #$A55A
+        bne ntp_done            ; < 2 MB -> no music, stay silent
+        lda $100400
+        cmp #$55AA
+        bne ntp_done
+
         ; base pointer for the MLI parameter list ($00D0, bank 0)
         lda #$00D0
         sta Z_PRM
