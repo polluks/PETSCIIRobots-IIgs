@@ -136,6 +136,10 @@ Making a new title disk with a different song:
 
 Available songs are the converted MODs in `ntp/` (get psyched, lose,
 metal heads, metallic bop amiga, robot attack, rushin in, soundfx, win).
+`make dsk` now places all of them on the disk (`GET.PSYCHED.NTP`,
+`LOSE.NTP`, `METAL.HEADS.NTP`, `METALLIC.BOP.NT`, `ROBOT.ATTACK.NT`,
+`RUSHIN.IN.NTP`, `SOUNDFX.NTP`, `WIN.NTP`) plus the title song as
+`TITLE.NTP` (default `robot attack`); the intro plays only `TITLE.NTP`.
 
 ## Credits
 - **Attack of the PETSCII Robots** — original game by **David Murray** (2020-2022,

@@ -35,6 +35,14 @@ dsk: intro
 	$(AC) -p petsciirobots.dsk INTRO EXE 2000 < intro
 	$(AC) -p petsciirobots.dsk NTPPLAYER UNK 0 < ntp/NTPPLAYER.bin
 	$(AC) -p petsciirobots.dsk TITLE.NTP UNK 0 < "$(NTP_SONG)"
+	$(AC) -p petsciirobots.dsk "GET PSYCHED.NTP" UNK 0 < "ntp/get psyched.ntp"
+	$(AC) -p petsciirobots.dsk "LOSE.NTP" UNK 0 < "ntp/lose.ntp"
+	$(AC) -p petsciirobots.dsk "METAL HEADS.NTP" UNK 0 < "ntp/metal heads.ntp"
+	$(AC) -p petsciirobots.dsk "METALLIC BOP.NTP" UNK 0 < "ntp/metallic bop amiga.ntp"
+	$(AC) -p petsciirobots.dsk "ROBOT ATTACK.NTP" UNK 0 < "ntp/robot attack.ntp"
+	$(AC) -p petsciirobots.dsk "RUSHIN IN.NTP" UNK 0 < "ntp/rushin in.ntp"
+	$(AC) -p petsciirobots.dsk "SOUNDFX.NTP" UNK 0 < "ntp/soundfx.ntp"
+	$(AC) -p petsciirobots.dsk "WIN.NTP" UNK 0 < "ntp/win.ntp"
 	$(AC) -p petsciirobots.dsk TILESET BIN 0x5000 < deploy/TILESET
 	@for l in A B C D E F G H I J K L M N; do \
 		$(AC) -p petsciirobots.dsk LEVEL.$$l BIN 0x5D00 < deploy/LEVEL-$$l; \
