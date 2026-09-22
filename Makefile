@@ -24,7 +24,13 @@ GSSQUARED ?= /Applications/GSSquared.app/Contents/MacOS/GSSquared
 
 # NTP music: player binary + title song copied to the disk as NTPPLAYER and
 # TITLE.NTP (NTPMUSIC.s reads these at runtime from /PETSCIIROBOTS).
+# TITLE.NTP is the same file as ROBOT ATTACK.NTP, so only the title copy is
+# installed (keeping the duplicate off the disk leaves room for the kernel).
 NTP_SONG ?= ntp/robot attack.ntp
+
+# ProDOS 8 kernel (SYS) that boot block 0 loads by name to start the system.
+# PRODOS_REF is any ProDOS 8 boot disk with that file (e.g. ProDOS 2.4.x).
+PRODOS_REF ?= /Users/sah/g/mii_emu/disks/prodos242.dsk
 
 OBJS = main.o shr.o shr_asm.o NTPMUSIC.o
 
@@ -36,32 +42,40 @@ all: intro
 # The image carries the .po extension because GSSquared only treats .dsk/.do
 # files as 140K floppies and rejects anything larger; 800K volumes must be
 # identified as ProDOS block (.po) media to mount there.
-# The intro program is installed as BASIC.SYSTEM (not INTRO) so ProDOS
-# auto-boots it; nothing else on the disk opens INTRO by name.
-dist: intro
+# The intro program is installed as BASIC.SYSTEM (a ProDOS SYS $2000 program)
+# so the kernel runs it automatically after boot; nothing opens INTRO by name.
+# LEVEL.N is skipped so the bootable PRODOS kernel fits on the volume; the
+# map menu still rounds 0-13 down to the 13 installed levels.
+dist: intro deploy/PRODOS
 	$(AC) -pro800 petsciirobots.po PETSCIIROBOTS
-	$(AC) -p petsciirobots.po BASIC.SYSTEM EXE 2000 < intro
+	$(AC) -p petsciirobots.po BASIC.SYSTEM SYS 0x2000 < intro
+	$(AC) -p petsciirobots.po PRODOS SYS 0x2000 < deploy/PRODOS
 	$(AC) -p petsciirobots.po NTPPLAYER UNK 0 < ntp/NTPPLAYER.bin
 	$(AC) -p petsciirobots.po TITLE.NTP UNK 0 < "$(NTP_SONG)"
 	$(AC) -p petsciirobots.po "GET PSYCHED.NTP" UNK 0 < "ntp/get psyched.ntp"
 	$(AC) -p petsciirobots.po "LOSE.NTP" UNK 0 < "ntp/lose.ntp"
 	$(AC) -p petsciirobots.po "METAL HEADS.NTP" UNK 0 < "ntp/metal heads.ntp"
 	$(AC) -p petsciirobots.po "METALLIC BOP.NTP" UNK 0 < "ntp/metallic bop amiga.ntp"
-	$(AC) -p petsciirobots.po "ROBOT ATTACK.NTP" UNK 0 < "ntp/robot attack.ntp"
 	$(AC) -p petsciirobots.po "RUSHIN IN.NTP" UNK 0 < "ntp/rushin in.ntp"
 	$(AC) -p petsciirobots.po "SOUNDFX.NTP" UNK 0 < "ntp/soundfx.ntp"
 	$(AC) -p petsciirobots.po "WIN.NTP" UNK 0 < "ntp/win.ntp"
 	$(AC) -p petsciirobots.po TILESET BIN 0x5000 < deploy/TILESET
-	@for l in A B C D E F G H I J K L M N; do \
+	@for l in A B C D E F G H I J K L M; do \
 		$(AC) -p petsciirobots.po LEVEL.$$l BIN 0x5D00 < deploy/LEVEL-$$l; \
 	done
 
-# Test: build the disk image, verify it is bootable (INTRO + BASIC.SYSTEM),
-# then launch GSSquared. In the emulator, pick "Apple IIgs", click a ProDOS
-# block drive, and select petsciirobots.po.
+# Extract the ProDOS 8 kernel from a known-good boot disk (PRODOS_REF).
+deploy/PRODOS:
+	mkdir -p deploy
+	$(AC) -g $(PRODOS_REF) PRODOS $@
+
+# Test: build the disk image, verify it is bootable (PRODOS kernel +
+# BASIC.SYSTEM), then launch GSSquared. In the emulator, pick "Apple IIgs",
+# click a ProDOS block drive, and select petsciirobots.po.
 check: dist
+	$(AC) -l petsciirobots.po | grep -q PRODOS && \
 	$(AC) -l petsciirobots.po | grep -q BASIC.SYSTEM
-	@echo "petsciirobots.po OK: BASIC.SYSTEM present"
+	@echo "petsciirobots.po OK: PRODOS + BASIC.SYSTEM present"
 	@pgrep -q -f "$(GSSQUARED)" \
 		&& echo "GSSquared already running" \
 		|| { "$(GSSQUARED)" > /tmp/gs2-check.log 2>&1 & \
