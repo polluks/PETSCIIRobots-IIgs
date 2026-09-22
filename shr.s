@@ -30,16 +30,11 @@ _shr_slam:
 	phy                     ; preserve Y (caller-saved convention)
 	pha                     ; stash src (arg1 was in A)
 	phb                     ; MVN clobbers the data bank register
-	                        ; stack now: pha(1,2) phy(3,4) DBR(5)
+	                        ; stack now: DBR(1) src(2,3) Y(4,5)
 	                        ;             ret(6,7,8) count_arg(9,10)
-	lda	1,s             ; A = src
-	clc
-	adc	9,s             ; A = src + count
-	sec
-	sbc	#1              ; A = src + count - 1  (last byte of region)
-	tay                     ; Y = last source byte
-	tya
-	tax                     ; X = last destination byte (same region)
+	lda	2,s             ; A = src
+	tay                     ; Y = src (MVN destination index)
+	tax                     ; X = src (MVN source index)
 	lda	9,s             ; A = count
 	beq	CLEANUP         ; count == 0 -> nothing to mirror
 	sec

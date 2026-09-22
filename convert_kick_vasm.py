@@ -289,11 +289,32 @@ def apply_iigs_game_patches(text: str) -> str:
     #    6502 body executes correctly.  Assembled as raw opcode bytes because
     #    the game is assembled for the plain 6502 (enabling -816 would make the
     #    `da` directives in IIGS_LOAD.s emit 3-byte addresses and break MLI).
+    #    The IIgs VBL runs at ~60 Hz but the game was tuned for a 50 Hz PET
+    #    (UPDATE_GAME_CLOCK counts to 50), so run the body on 5 of every 6
+    #    VBLs: this keeps the in-game clock accurate and the animations/music
+    #    at their intended speed.  Set the prescaler to 1 to run at 60 Hz.
     sub_once(
         r'^RUNIRQ:\n',
         'RUNIRQ:\n'
-        '\tdfb\t$E2, $30\t\t; SEP #$30 (select 8-bit A/X in native mode)\n',
+        '\tdfb\t$E2, $30\t\t; SEP #$30 (select 8-bit A/X in native mode)\n'
+        '\tINC\tVBL_DIV\t\t; 60 Hz VBL -> 50 Hz game tick (5 of 6 VBLs)\n'
+        '\tLDA\tVBL_DIV\n'
+        '\tCMP\t#6\n'
+        '\tBNE\tRUNIRQ_TICK\n'
+        '\tLDA\t#0\n'
+        '\tSTA\tVBL_DIV\n'
+        '\tLDA\t#$00\n'
+        '\tSTA\t$C047\t\t; clear VBL flag and skip this tick\n'
+        '\tRTI\n'
+        'RUNIRQ_TICK:\n',
         'RUNIRQ entry', flags=re.MULTILINE)
+
+    # 9. Prescaler state byte for the 60 Hz -> 50 Hz VBL tick (see patch 8).
+    sub_once(
+        r'^KEYTIMER[ \t]+byte 00[^\n]*\n',
+        'KEYTIMER byte 00\t;Used for repeat of movement\n'
+        'VBL_DIV\tbyte 00\t;60Hz VBL -> 50Hz game tick prescaler\n',
+        'VBL_DIV state', flags=re.MULTILINE)
 
     return text
 

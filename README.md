@@ -47,9 +47,16 @@ The data (from the proven Apple III port) is kept in `deploy/` and placed on
   soft-switches `$C000`/`$C010` directly and translates the resulting ASCII to
   the PETSCII codes the game compares against (arrow keys -> `$11`/`$91`/`$1D`/
   `$9D` cursor codes; A-Z/0-9 pass through unchanged, since PETSCII upper-case
-  matches ASCII). Note: the game's shifted keys (`#195` shift-C / `#205`
-  shift-M cheats) and PET-only keys (RUN/STOP `#03`, HOME `#19`, custom-key
-  entry via `#3A`) still need IIgs equivalents.
+  matches ASCII). READ_KEY also keeps the PET KERNAL LSTX latch (`$0097`)
+  updated so the game's `KEY_REPEAT` held-key repeat works, and preserves X/Y
+  like the GETIN it replaces. IIgs key equivalents:
+  - `ESC` (or `Ctrl+C`) -> RUN/STOP `#03` (pause)
+  - `TAB` (or Clear) -> HOME `#19` (map)
+  - custom-key entry (`SET_CUSTOM_KEYS`) works, since printable ASCII keys pass
+    straight through to the PETSCII codes the game stores
+  - Not available: the game's shifted-letter codes (`#195` shift-C cheat,
+    `#205` shift-M music toggle) — the IIgs keyboard does not distinguish
+    shift on letters, so no IIgs key produces them.
 
 ### 3. Interrupt/IRQ setup — done
 `SETUP_INTERRUPT` installs `RUNIRQ` as the ProDOS user interrupt vector at
@@ -58,8 +65,11 @@ The data (from the proven Apple III port) is kept in `deploy/` and placed on
 handler, in native mode with 8-bit registers (`RUNIRQ` begins with `SEP #$30`).
 `RUNIRQ` runs the music/game-clock/water-animation tick and the background
 timers, then clears the VBL flag through CLRVBLINT (`$C047`) and returns with
-`RTI`. `PLAT_LOAD_FILE` masks the VBL interrupt during ProDOS MLI disk I/O so
-the handler cannot clobber ProDOS zero page mid-call.
+`RTI`. The game was tuned for a 50 Hz PET, so `RUNIRQ` feeds the 60 Hz VBL
+through a 5-of-6 prescaler (`VBL_DIV`) that yields the original 50 Hz tick
+(change its compare from 6 to 1 to run native 60 Hz). `PLAT_LOAD_FILE` masks
+the VBL interrupt during ProDOS MLI disk I/O so the handler cannot clobber
+ProDOS zero page mid-call.
 
 ### 4. Text screen output + PETSCII encoding
 - Text is written directly to the PET text screen (e.g. `STA $8190,Y`,
@@ -86,7 +96,10 @@ through a thin IIgs BSoS/I/O layer.
 ## Current IIgs work
 The `intro` loader (vbcc 65816, `make` default) already demonstrates the SHR
 shadowed-memory fast-refresh path used to display `introscreen.png` on
-`petsciirobots.dsk` (ProDOS 800K volume `PETSCIIROBOTS`).
+`petsciirobots.dsk` (ProDOS 800K volume `PETSCIIROBOTS`). `shr_slam` (`shr.s`)
+mirrors the 32 KB back buffer in bank `$01` onto the SHR display (bank `$E1`)
+with an MVN self-copy that starts at the buffer base (fixed from starting at
+the last byte, which copied the wrong region).
 
 **MOD music playback:** the intro plays a MOD soundtrack using
 **NinjaTrackerPlus (NTP)**, Ninjaforce's Apple IIgs MOD player. The NTP engine

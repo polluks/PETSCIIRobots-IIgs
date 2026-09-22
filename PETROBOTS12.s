@@ -322,6 +322,16 @@ SETUP_INTERRUPT:
 ;there.
 RUNIRQ:
 	dfb	$E2, $30		; SEP #$30 (select 8-bit A/X in native mode)
+	INC	VBL_DIV		; 60 Hz VBL -> 50 Hz game tick (5 of 6 VBLs)
+	LDA	VBL_DIV
+	CMP	#6
+	BNE	RUNIRQ_TICK
+	LDA	#0
+	STA	VBL_DIV
+	LDA	#$00
+	STA	$C047		; clear VBL flag and skip this tick
+	RTI
+RUNIRQ_TICK:
 	;LDA	ARP_MODE	;ARP ROUTINE DISABLED
 	;CMP	#00		;SINCE NO MUSIC IS USING IT
 	;BEQ	IRQ20
@@ -349,6 +359,7 @@ IRQ31:	LDA	#$00
 BGTIMER1 byte 00
 BGTIMER2 byte 00
 KEYTIMER byte 00	;Used for repeat of movement
+VBL_DIV	byte 00	;60Hz VBL -> 50Hz game tick prescaler
 
 ;Since the PET has no real-time clock, and the Jiffy clock
 ;is a pain to read from assembly language, I have created my own.
