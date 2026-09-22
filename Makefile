@@ -19,6 +19,9 @@ CFLAGS  = -O2
 # AppleCommander (on PATH as `ac`) used to build the ProDOS disk image (make dist).
 AC      ?= ac
 
+# GSSquared IIgs emulator binary, used by "make check".
+GSSQUARED ?= /Applications/GSSquared.app/Contents/MacOS/GSSquared
+
 # NTP music: player binary + title song copied to the disk as NTPPLAYER and
 # TITLE.NTP (NTPMUSIC.s reads these at runtime from /PETSCIIROBOTS).
 NTP_SONG ?= ntp/robot attack.ntp
@@ -27,26 +30,43 @@ OBJS = main.o shr.o shr_asm.o NTPMUSIC.o
 
 all: intro
 
-# Build the 800K ProDOS disk (PETSCIIROBOTS) containing the INTRO executable,
-# the NTP player and title song, and the game data (tileset + levels) loaded
-# at runtime by IIGS_LOAD.s (requires 2 MB of RAM on the IIgs).
+# Build the 800K ProDOS disk image (PETSCIIROBOTS) containing the INTRO
+# executable, the NTP player and title song, and the game data (tileset +
+# levels) loaded at runtime by IIGS_LOAD.s (requires 2 MB of RAM on the IIgs).
+# The image carries the .po extension because GSSquared only treats .dsk/.do
+# files as 140K floppies and rejects anything larger; 800K volumes must be
+# identified as ProDOS block (.po) media to mount there.
+# The intro program is installed as BASIC.SYSTEM (not INTRO) so ProDOS
+# auto-boots it; nothing else on the disk opens INTRO by name.
 dist: intro
-	$(AC) -pro800 petsciirobots.dsk PETSCIIROBOTS
-	$(AC) -p petsciirobots.dsk INTRO EXE 2000 < intro
-	$(AC) -p petsciirobots.dsk NTPPLAYER UNK 0 < ntp/NTPPLAYER.bin
-	$(AC) -p petsciirobots.dsk TITLE.NTP UNK 0 < "$(NTP_SONG)"
-	$(AC) -p petsciirobots.dsk "GET PSYCHED.NTP" UNK 0 < "ntp/get psyched.ntp"
-	$(AC) -p petsciirobots.dsk "LOSE.NTP" UNK 0 < "ntp/lose.ntp"
-	$(AC) -p petsciirobots.dsk "METAL HEADS.NTP" UNK 0 < "ntp/metal heads.ntp"
-	$(AC) -p petsciirobots.dsk "METALLIC BOP.NTP" UNK 0 < "ntp/metallic bop amiga.ntp"
-	$(AC) -p petsciirobots.dsk "ROBOT ATTACK.NTP" UNK 0 < "ntp/robot attack.ntp"
-	$(AC) -p petsciirobots.dsk "RUSHIN IN.NTP" UNK 0 < "ntp/rushin in.ntp"
-	$(AC) -p petsciirobots.dsk "SOUNDFX.NTP" UNK 0 < "ntp/soundfx.ntp"
-	$(AC) -p petsciirobots.dsk "WIN.NTP" UNK 0 < "ntp/win.ntp"
-	$(AC) -p petsciirobots.dsk TILESET BIN 0x5000 < deploy/TILESET
+	$(AC) -pro800 petsciirobots.po PETSCIIROBOTS
+	$(AC) -p petsciirobots.po BASIC.SYSTEM EXE 2000 < intro
+	$(AC) -p petsciirobots.po NTPPLAYER UNK 0 < ntp/NTPPLAYER.bin
+	$(AC) -p petsciirobots.po TITLE.NTP UNK 0 < "$(NTP_SONG)"
+	$(AC) -p petsciirobots.po "GET PSYCHED.NTP" UNK 0 < "ntp/get psyched.ntp"
+	$(AC) -p petsciirobots.po "LOSE.NTP" UNK 0 < "ntp/lose.ntp"
+	$(AC) -p petsciirobots.po "METAL HEADS.NTP" UNK 0 < "ntp/metal heads.ntp"
+	$(AC) -p petsciirobots.po "METALLIC BOP.NTP" UNK 0 < "ntp/metallic bop amiga.ntp"
+	$(AC) -p petsciirobots.po "ROBOT ATTACK.NTP" UNK 0 < "ntp/robot attack.ntp"
+	$(AC) -p petsciirobots.po "RUSHIN IN.NTP" UNK 0 < "ntp/rushin in.ntp"
+	$(AC) -p petsciirobots.po "SOUNDFX.NTP" UNK 0 < "ntp/soundfx.ntp"
+	$(AC) -p petsciirobots.po "WIN.NTP" UNK 0 < "ntp/win.ntp"
+	$(AC) -p petsciirobots.po TILESET BIN 0x5000 < deploy/TILESET
 	@for l in A B C D E F G H I J K L M N; do \
-		$(AC) -p petsciirobots.dsk LEVEL.$$l BIN 0x5D00 < deploy/LEVEL-$$l; \
+		$(AC) -p petsciirobots.po LEVEL.$$l BIN 0x5D00 < deploy/LEVEL-$$l; \
 	done
+
+# Test: build the disk image, verify it is bootable (INTRO + BASIC.SYSTEM),
+# then launch GSSquared. In the emulator, pick "Apple IIgs", click a ProDOS
+# block drive, and select petsciirobots.po.
+check: dist
+	$(AC) -l petsciirobots.po | grep -q BASIC.SYSTEM
+	@echo "petsciirobots.po OK: BASIC.SYSTEM present"
+	@pgrep -q -f "$(GSSQUARED)" \
+		&& echo "GSSquared already running" \
+		|| { "$(GSSQUARED)" > /tmp/gs2-check.log 2>&1 & \
+			echo "GSSquared started (log: /tmp/gs2-check.log)"; }
+	@echo "In GSSquared: pick 'Apple IIgs', drive button, choose petsciirobots.po"
 
 # Convert the PNG into screen.bin and image_data.h
 image_data.h: convert_png.py introscreen.png
@@ -97,4 +117,4 @@ intro: $(OBJS)
 clean:
 	rm -f *.o intro intro.map mapfile petrobots.bin
 
-.PHONY: all clean dist petrobots ntp ntpconvert
+.PHONY: all clean dist petrobots ntp ntpconvert check
